@@ -27,22 +27,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Force light mode for Starbucks theme
   const systemThemeScript = `(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const applyTheme = (isDark) => {
-      const root = document.documentElement;
-      root.classList.toggle('dark', isDark);
-      root.style.colorScheme = isDark ? 'dark' : 'light';
-    };
-    applyTheme(mediaQuery.matches);
-    const listener = (event) => applyTheme(event.matches);
-    mediaQuery.addEventListener ? mediaQuery.addEventListener('change', listener) : mediaQuery.addListener(listener);
+    const root = document.documentElement;
+    root.classList.remove('dark');
+    root.style.colorScheme = 'light';
   })();`;
 
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang="en" className="h-full light" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
+        style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
       >
         <script
           dangerouslySetInnerHTML={{ __html: systemThemeScript }}
@@ -53,14 +49,12 @@ export default function RootLayout({
             <Image
               src="/starbucks-logo.svg"
               alt="Starbucks"
-              width={38}
-              height={38}
+              width={50}
+              height={50}
               priority
             />
           </div>
-          <strong style={{ fontSize: "1.05rem", color: "var(--brand-green-dark)" }}>
-            Starbucks Video Studio
-          </strong>
+          <strong>Starbucks Video Studio</strong>
         </header>
         {children}
       </body>

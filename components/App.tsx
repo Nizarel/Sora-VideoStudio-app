@@ -679,7 +679,7 @@ export default function App() {
   );
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+    <div className="flex min-h-screen w-full flex-col" style={{ background: 'var(--brand-cream)', color: 'var(--brand-black)' }}>
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         <VideoSidebar
           items={items}
@@ -697,12 +697,12 @@ export default function App() {
           isMobileOpen={isMobileSidebarOpen}
           onMobileClose={closeMobileSidebar}
         />
-        <main className="order-2 h-screen flex-1 overflow-y-auto px-4 py-5 bg-neutral-100 dark:bg-neutral-800 lg:px-10 lg:py-8">
+        <main className="order-2 h-screen flex-1 overflow-y-auto px-4 py-5 lg:px-10 lg:py-8" style={{ background: 'var(--brand-cream)', color: 'var(--brand-black)' }}>
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
             <header className="mb-1.5 flex items-start justify-between gap-3">
               <div>
-                <h1 className="mb-2 text-3xl font-semibold">Sora API Demo</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="mb-2 text-3xl font-semibold" style={{ color: 'var(--brand-black)' }}>Sora API Demo</h1>
+                <p className="text-sm" style={{ color: 'var(--brand-black)', opacity: 0.7 }}>
                   Try Sora models in the API, with different parameters and text
                   + image inputs.
                 </p>
