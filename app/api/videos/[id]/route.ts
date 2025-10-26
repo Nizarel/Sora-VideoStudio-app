@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import {
   coerceVideoModel,
   coerceVideoSeconds,
@@ -9,19 +8,15 @@ import {
   resolveErrorStatus,
   VideoRequestPayload,
 } from "@/lib/sora";
+import {
+  azureSoraJsonRequest,
+  AzureSoraConfigError,
+} from "@/lib/azureSora";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    const message = "OPENAI_API_KEY is not configured";
-    return Response.json({ error: { message } }, { status: 500 });
-  }
-
-  const client = new OpenAI({ apiKey });
-
   const { id } = await params;
   const videoId = typeof id === "string" ? id.trim() : "";
   if (!videoId) {
@@ -32,7 +27,7 @@ export async function GET(
   }
 
   try {
-    const video = await client.get(`/videos/${videoId}`);
+    const video = await azureSoraJsonRequest(`/video/generations/jobs/${encodeURIComponent(videoId)}`);
     const videoRecord = isRecord(video) ? video : {};
 
     const prompt =
@@ -58,6 +53,9 @@ export async function GET(
     const normalized = normalizeVideoResponse(video, fallback);
     return Response.json(normalized);
   } catch (error) {
+    if (error instanceof AzureSoraConfigError) {
+      return Response.json({ error: { message: error.message } }, { status: 500 });
+    }
     const message = describeError(error, "Failed to fetch video");
     const status = resolveErrorStatus(error);
     return Response.json({ error: { message } }, { status });

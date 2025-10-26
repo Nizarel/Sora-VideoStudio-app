@@ -75,6 +75,18 @@ const extractDownloadUrl = (video: unknown): string | null => {
     return directDownload;
   }
 
+  if (isRecord(video.result)) {
+    const directResultDownload = readString(video.result.download_url)
+      || readString(video.result.content_url);
+    if (directResultDownload) {
+      return directResultDownload;
+    }
+
+    if (isRecord(video.result.video) && readString(video.result.video.download_url)) {
+      return readString(video.result.video.download_url);
+    }
+  }
+
   if (isRecord(video.assets) && isRecord(video.assets.video)) {
     const nestedDownload = readString(video.assets.video.download_url);
     if (nestedDownload) {
@@ -92,6 +104,13 @@ const extractDownloadUrl = (video: unknown): string | null => {
     return null;
   };
 
+  if (isRecord(video.result) && Array.isArray(video.result.assets)) {
+    const downloadFromResultAssets = searchInCollection(video.result.assets);
+    if (downloadFromResultAssets) {
+      return downloadFromResultAssets;
+    }
+  }
+
   const downloadFromAssets = searchInCollection(video.assets);
   if (downloadFromAssets) {
     return downloadFromAssets;
@@ -106,6 +125,14 @@ const extractThumbnailUrl = (video: unknown): string | null => {
   const directThumbnail = readString(video.thumbnail_url);
   if (directThumbnail) {
     return directThumbnail;
+  }
+
+  if (isRecord(video.result)) {
+    const resultThumb = readString(video.result.thumbnail_url)
+      || readString(video.result.preview_image_url);
+    if (resultThumb) {
+      return resultThumb;
+    }
   }
 
   if (isRecord(video.assets) && isRecord(video.assets.thumbnail)) {
@@ -125,7 +152,45 @@ const extractThumbnailUrl = (video: unknown): string | null => {
     }
   }
 
+  if (isRecord(video.result) && Array.isArray(video.result.assets)) {
+    for (const asset of video.result.assets) {
+      if (!isRecord(asset)) continue;
+      const type = readString(asset.type)?.toLowerCase();
+      if (type === "thumbnail" || type === "preview_image") {
+        const url = readString(asset.url) || readString(asset.download_url);
+        if (url) return url;
+      }
+    }
+  }
+
   return null;
+};
+
+const mapAzureStatus = (status: string | null): string => {
+  if (!status) return "queued";
+  const normalized = status.toLowerCase();
+  switch (normalized) {
+    case "notstarted":
+    case "queued":
+    case "pending":
+      return "queued";
+    case "running":
+    case "in_progress":
+    case "processing":
+      return "in_progress";
+    case "succeeded":
+    case "completed":
+    case "finished":
+      return "succeeded";
+    case "failed":
+    case "error":
+      return "failed";
+    case "cancelled":
+    case "canceled":
+      return "failed";
+    default:
+      return normalized;
+  }
 };
 
 export type NormalizedVideoResponse = UnknownRecord & {
@@ -144,7 +209,10 @@ export type NormalizedVideoResponse = UnknownRecord & {
 };
 
 const resolveVideoId = (video: UnknownRecord, now: number): string => {
-  const directId = readString(video.id) || readString(video.video_id);
+  const directId = readString(video.id)
+    || readString(video.video_id)
+    || readString(video.job_id)
+    || readString(video.jobId);
   if (directId) return directId;
 
   if (isRecord(video.data)) {
@@ -165,21 +233,25 @@ export const normalizeVideoResponse = (
   const statusRaw =
     readString(videoData.status)
     || readString(videoData.state)
+    || readString(videoData.job_status)
+    || readString(videoData.jobState)
     || "queued";
+  const status = mapAzureStatus(statusRaw);
 
   const createdAt = toUnixSeconds(videoData.created_at) ?? now;
   const completedAt = toUnixSeconds(videoData.completed_at)
-    ?? (statusRaw === "completed" ? now : null);
+    ?? (status === "succeeded" || status === "completed" ? now : null);
 
   const remixVideoId = readString(videoData.remix_video_id)
     || readString(videoData.remix_of)
     || readString(videoData.remixed_from_video_id)
+    || (isRecord(videoData.result) ? readString((videoData.result as UnknownRecord).remix_of) : null)
     || null;
 
   const response: NormalizedVideoResponse = {
     ...videoData,
     id: resolveVideoId(videoData, now),
-    status: statusRaw,
+    status,
     prompt: fallback.prompt,
     model: fallback.model,
     size: fallback.size,

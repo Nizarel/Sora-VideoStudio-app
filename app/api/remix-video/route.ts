@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import {
   coerceVideoModel,
   coerceVideoSeconds,
@@ -9,16 +8,13 @@ import {
   resolveErrorStatus,
   VideoRequestPayload,
 } from "@/lib/sora";
+import {
+  azureSoraJsonRequest,
+  AzureSoraConfigError,
+} from "@/lib/azureSora";
+import { buildVideoJobPayload } from "@/lib/videoJobPayload";
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    const message = "OPENAI_API_KEY is not configured";
-    return Response.json({ error: { message } }, { status: 500 });
-  }
-
-  const client = new OpenAI({ apiKey });
-
   let rawPayload: unknown;
   try {
     rawPayload = await request.json();
@@ -46,12 +42,25 @@ export async function POST(request: Request) {
   };
 
   try {
-    const video = await client.post(`/videos/${videoId}/remix`, {
-      body: { prompt },
+    const jobPayload = buildVideoJobPayload(fallback, prompt, null);
+    jobPayload.remix_of = videoId;
+    if (isRecord(jobPayload.metadata)) {
+      jobPayload.metadata = {
+        ...jobPayload.metadata,
+        remix_of: videoId,
+      };
+    }
+
+    const video = await azureSoraJsonRequest("/video/generations/jobs", {
+      method: "POST",
+      body: jobPayload,
     });
     const normalized = normalizeVideoResponse(video, fallback);
     return Response.json(normalized);
   } catch (error) {
+    if (error instanceof AzureSoraConfigError) {
+      return Response.json({ error: { message: error.message } }, { status: 500 });
+    }
     const message = describeError(error, "Failed to remix video");
     const status = resolveErrorStatus(error);
     return Response.json({ error: { message } }, { status });

@@ -4,7 +4,7 @@
 ![NextJS](https://img.shields.io/badge/Built_with-NextJS-blue)
 ![Sora Video API](https://img.shields.io/badge/Powered_by-Sora_Video_API-orange)
 
-This repository contains a NextJS sample app built on top of the [Sora Video API](https://platform.openai.com/docs/guides/video-generation) and OpenAI SDK.
+This repository contains a NextJS sample app built on top of the [Sora Video API](https://learn.microsoft.com/azure/ai-services/openai/how-to/video-generation) via Azure AI Foundry.
 It provides a simple UI for experimentation, using text prompts and optionally image inputs to generate and remix videos.
 
 ![Sora demo visual](./public/sora-demo-visual.jpg)
@@ -28,16 +28,19 @@ This app is meant to be used as a starting point to build Sora-powered video exp
    - Sora is currently in limited availability. Request access through your OpenAI account team or the [Video API waitlist](https://openai.com/waitlist/sora).
    - Once approved, review the [video generation guide](https://platform.openai.com/docs/guides/video-generation) to understand supported parameters and limits.
 
-2. **Set the OpenAI API key:**
+2. **Configure credentials:**
 
-   2 options:
-
-   - Export the `OPENAI_API_KEY` environment variable [globally on your machine](https://platform.openai.com/docs/libraries#create-and-export-an-api-key).
-   - Create a `.env.local` file at the project root (see below)
+   Create a `.env.local` file at the project root (or export the variables in your shell) with the Azure Sora endpoint and key that your Azure AI Foundry resource provides. The API version defaults to `preview`, but you can override it if Microsoft releases a newer preview version.
 
    ```bash
-   OPENAI_API_KEY="your-openai-api-key"
+   AZURE_SORA_ENDPOINT="https://<your-resource-name>.cognitiveservices.azure.com/openai/v1"
+   AZURE_SORA_KEY="your-azure-sora-key"
+   # Optional, defaults to "preview"
+   # AZURE_SORA_API_VERSION="2025-03-01-preview"
    ```
+
+   > **Note**
+   > Other helper features (prompt suggestions, titles, image generation) still rely on the OpenAI Responses and Images APIs. If you plan to use those flows, also provide `OPENAI_API_KEY` in the same `.env.local` file.
 
 3. **Clone the repository:**
 
