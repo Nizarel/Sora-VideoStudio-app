@@ -15,6 +15,126 @@ const ALLOWED_SECONDS = new Set<VideoSeconds>(["4", "8", "12"]);
 export const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const collectAssetCollections = (source: UnknownRecord): unknown[][] => {
+  const output: unknown[][] = [];
+  const stack: UnknownRecord[] = [source];
+
+  const enqueue = (value: unknown) => {
+    if (Array.isArray(value)) {
+      output.push(value);
+    } else if (isRecord(value)) {
+      stack.push(value);
+    }
+  };
+
+  while (stack.length) {
+    const current = stack.pop()!;
+    enqueue(current.assets);
+    enqueue(current.generations);
+    enqueue(current.output);
+    enqueue(current.outputs);
+    enqueue(current.data);
+    enqueue(current.result);
+    enqueue(current.media);
+  }
+
+  return output;
+};
+
+const readString = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
+const readLower = (value: unknown): string => {
+  const str = readString(value);
+  return str ? str.toLowerCase() : "";
+};
+
+const getAssetUrl = (asset: UnknownRecord): string | null => {
+  const candidates = [
+    readString(asset.download_url),
+    readString((asset as { downloadUrl?: unknown }).downloadUrl),
+    readString(asset.url),
+    readString((asset as { content_url?: unknown }).content_url),
+    readString((asset as { contentUrl?: unknown }).contentUrl),
+    readString((asset as { asset_url?: unknown }).asset_url),
+    readString((asset as { assetUrl?: unknown }).assetUrl),
+    readString((asset as { file_url?: unknown }).file_url),
+    readString((asset as { fileUrl?: unknown }).fileUrl),
+    readString((asset as { content_uri?: unknown }).content_uri),
+    readString((asset as { contentUri?: unknown }).contentUri),
+  ];
+  for (const candidate of candidates) {
+    if (candidate) return candidate;
+  }
+  return null;
+};
+
+const isProbablyVideoAsset = (asset: UnknownRecord): boolean => {
+  const descriptors = [
+    readLower(asset.type),
+    readLower(asset.role),
+    readLower(asset.purpose),
+    readLower(asset.format),
+    readLower(asset.asset_type),
+    readLower(asset.mime_type),
+    readLower((asset as { mimeType?: unknown }).mimeType),
+    readLower(asset.category),
+    readLower(asset.kind),
+  ];
+  const name = readLower(asset.name)
+    || readLower((asset as { filename?: unknown }).filename)
+    || readLower((asset as { file_name?: unknown }).file_name);
+
+  if (descriptors.some((value) => value.includes("video") || value.includes("mp4"))) {
+    return true;
+  }
+  if (name && (name.endsWith(".mp4") || name.includes("video"))) {
+    return true;
+  }
+  return false;
+};
+
+const isProbablyThumbnailAsset = (asset: UnknownRecord): boolean => {
+  const descriptors = [
+    readLower(asset.type),
+    readLower(asset.role),
+    readLower(asset.purpose),
+    readLower(asset.category),
+    readLower(asset.kind),
+    readLower(asset.format),
+    readLower(asset.asset_type),
+    readLower(asset.mime_type),
+    readLower((asset as { mimeType?: unknown }).mimeType),
+  ];
+  const name = readLower(asset.name)
+    || readLower((asset as { filename?: unknown }).filename)
+    || readLower((asset as { file_name?: unknown }).file_name);
+
+  if (descriptors.some((value) => value.includes("thumb") || value.includes("preview") || value.includes("image"))) {
+    return true;
+  }
+  if (name && (name.includes("thumb") || name.includes("preview") || name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg"))) {
+    return true;
+  }
+  return false;
+};
+
+const findAssetUrl = (
+  video: UnknownRecord,
+  matcher: (asset: UnknownRecord) => boolean,
+  { fallback }: { fallback?: boolean } = {},
+): string | null => {
+  for (const collection of collectAssetCollections(video)) {
+    for (const entry of collection) {
+      if (!isRecord(entry)) continue;
+      const url = getAssetUrl(entry);
+      if (!url) continue;
+      if (matcher(entry)) return url;
+      if (fallback) return url;
+    }
+  }
+  return null;
+};
+
 export type VideoRequestPayload = {
   prompt: string;
   model: VideoModel;
@@ -65,30 +185,39 @@ const toUnixSeconds = (value: unknown): number | null => {
   return null;
 };
 
-const readString = (value: unknown): string | null => (typeof value === "string" ? value : null);
-
 const extractDownloadUrl = (video: unknown): string | null => {
   if (!isRecord(video)) return null;
+  const videoRecord = video as UnknownRecord;
 
-  const directDownload = readString(video.download_url) || readString(video.content_url);
+  const directDownload = readString(videoRecord.download_url)
+    || readString((videoRecord as { content_url?: unknown }).content_url)
+    || readString((videoRecord as { contentUrl?: unknown }).contentUrl);
   if (directDownload) {
     return directDownload;
   }
 
-  if (isRecord(video.result)) {
-    const directResultDownload = readString(video.result.download_url)
-      || readString(video.result.content_url);
+  if (isRecord(videoRecord.result)) {
+    const directResultDownload = readString(videoRecord.result.download_url)
+      || readString((videoRecord.result as { content_url?: unknown }).content_url)
+      || readString((videoRecord.result as { contentUrl?: unknown }).contentUrl);
     if (directResultDownload) {
       return directResultDownload;
     }
 
-    if (isRecord(video.result.video) && readString(video.result.video.download_url)) {
-      return readString(video.result.video.download_url);
+    if (isRecord(videoRecord.result.video)) {
+      const nestedResultDownload = readString(videoRecord.result.video.download_url)
+        || readString((videoRecord.result.video as { content_url?: unknown }).content_url)
+        || readString((videoRecord.result.video as { url?: unknown }).url);
+      if (nestedResultDownload) {
+        return nestedResultDownload;
+      }
     }
   }
 
-  if (isRecord(video.assets) && isRecord(video.assets.video)) {
-    const nestedDownload = readString(video.assets.video.download_url);
+  if (isRecord(videoRecord.assets) && isRecord(videoRecord.assets.video)) {
+    const nestedDownload = readString(videoRecord.assets.video.download_url)
+      || readString((videoRecord.assets.video as { content_url?: unknown }).content_url)
+      || readString((videoRecord.assets.video as { url?: unknown }).url);
     if (nestedDownload) {
       return nestedDownload;
     }
@@ -98,69 +227,102 @@ const extractDownloadUrl = (video: unknown): string | null => {
     if (!Array.isArray(collection)) return null;
     for (const entry of collection) {
       if (!isRecord(entry)) continue;
-      const url = readString(entry.download_url) || readString(entry.url);
+      const url = getAssetUrl(entry)
+        || readString(entry.download_url)
+        || readString((entry as { url?: unknown }).url);
       if (url) return url;
     }
     return null;
   };
 
-  if (isRecord(video.result) && Array.isArray(video.result.assets)) {
-    const downloadFromResultAssets = searchInCollection(video.result.assets);
+  if (isRecord(videoRecord.result) && Array.isArray(videoRecord.result.assets)) {
+    const downloadFromResultAssets = searchInCollection(videoRecord.result.assets);
     if (downloadFromResultAssets) {
       return downloadFromResultAssets;
     }
   }
 
-  const downloadFromAssets = searchInCollection(video.assets);
+  const downloadFromAssets = searchInCollection(videoRecord.assets);
   if (downloadFromAssets) {
     return downloadFromAssets;
   }
 
-  return searchInCollection(video.output);
+  const downloadFromOutput = searchInCollection(videoRecord.output);
+  if (downloadFromOutput) {
+    return downloadFromOutput;
+  }
+
+  const nestedVideoAsset = findAssetUrl(videoRecord, isProbablyVideoAsset);
+  if (nestedVideoAsset) {
+    return nestedVideoAsset;
+  }
+
+  const fallbackAsset = findAssetUrl(videoRecord, () => true, { fallback: true });
+  if (fallbackAsset) {
+    return fallbackAsset;
+  }
+
+  return null;
 };
 
 const extractThumbnailUrl = (video: unknown): string | null => {
   if (!isRecord(video)) return null;
+  const videoRecord = video as UnknownRecord;
 
-  const directThumbnail = readString(video.thumbnail_url);
+  const directThumbnail = readString(videoRecord.thumbnail_url)
+    || readString((videoRecord as { preview_image_url?: unknown }).preview_image_url)
+    || readString((videoRecord as { previewImageUrl?: unknown }).previewImageUrl);
   if (directThumbnail) {
     return directThumbnail;
   }
 
-  if (isRecord(video.result)) {
-    const resultThumb = readString(video.result.thumbnail_url)
-      || readString(video.result.preview_image_url);
+  if (isRecord(videoRecord.result)) {
+    const resultThumb = readString(videoRecord.result.thumbnail_url)
+      || readString((videoRecord.result as { preview_image_url?: unknown }).preview_image_url)
+      || readString((videoRecord.result as { previewImageUrl?: unknown }).previewImageUrl);
     if (resultThumb) {
       return resultThumb;
     }
   }
 
-  if (isRecord(video.assets) && isRecord(video.assets.thumbnail)) {
-    const nestedThumbnail = readString(video.assets.thumbnail.url);
+  if (isRecord(videoRecord.assets) && isRecord(videoRecord.assets.thumbnail)) {
+    const nestedThumbnail = readString(videoRecord.assets.thumbnail.url)
+      || readString((videoRecord.assets.thumbnail as { download_url?: unknown }).download_url)
+      || readString((videoRecord.assets.thumbnail as { content_url?: unknown }).content_url);
     if (nestedThumbnail) {
       return nestedThumbnail;
     }
   }
 
-  if (Array.isArray(video.assets)) {
-    for (const asset of video.assets) {
+  if (Array.isArray(videoRecord.assets)) {
+    for (const asset of videoRecord.assets) {
       if (!isRecord(asset)) continue;
       if (readString(asset.type) === "thumbnail") {
-        const url = readString(asset.url);
+        const url = getAssetUrl(asset) || readString(asset.url);
         if (url) return url;
       }
     }
   }
 
-  if (isRecord(video.result) && Array.isArray(video.result.assets)) {
-    for (const asset of video.result.assets) {
+  if (isRecord(videoRecord.result) && Array.isArray(videoRecord.result.assets)) {
+    for (const asset of videoRecord.result.assets) {
       if (!isRecord(asset)) continue;
       const type = readString(asset.type)?.toLowerCase();
       if (type === "thumbnail" || type === "preview_image") {
-        const url = readString(asset.url) || readString(asset.download_url);
+        const url = getAssetUrl(asset) || readString(asset.url) || readString(asset.download_url);
         if (url) return url;
       }
     }
+  }
+
+  const nestedThumbnail = findAssetUrl(videoRecord, isProbablyThumbnailAsset);
+  if (nestedThumbnail) {
+    return nestedThumbnail;
+  }
+
+  const fallbackThumbnail = findAssetUrl(videoRecord, () => true, { fallback: true });
+  if (fallbackThumbnail) {
+    return fallbackThumbnail;
   }
 
   return null;

@@ -1,4 +1,4 @@
-export const TITLE_MODEL = "gpt-4.1-mini" as const;
+export const DEFAULT_TITLE_MODEL = "gpt-5-nano" as const;
 
 type NestedContent = string | { text?: NestedContent; content?: NestedContent; value?: NestedContent } | NestedContent[] | null | undefined;
 

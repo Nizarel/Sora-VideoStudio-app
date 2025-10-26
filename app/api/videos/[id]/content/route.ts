@@ -66,9 +66,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     })();
 
     if (!assetUrl) {
+      const summarize = (collection: unknown): Array<Record<string, string>> => {
+        if (!Array.isArray(collection)) return [];
+        return collection
+          .map((item) => (isRecord(item) ? item : null))
+          .filter((item): item is Record<string, unknown> => Boolean(item))
+          .slice(0, 5)
+          .map((item) => ({
+            type: typeof item.type === "string" ? item.type : "",
+            role: typeof item.role === "string" ? item.role : "",
+            purpose: typeof item.purpose === "string" ? item.purpose : "",
+            url: typeof item.url === "string" ? item.url : "",
+            download_url: typeof item.download_url === "string" ? item.download_url : "",
+          }));
+      };
+
+      console.debug("Azure Sora asset not ready", {
+        videoId,
+        variant,
+        status: normalized.status,
+        assets: summarize(record.assets),
+        generations: summarize(record.generations),
+        resultAssets: summarize(isRecord(record.result) ? record.result.assets : undefined),
+      });
+
+      const statusCode = normalized.status === "succeeded" || normalized.status === "completed"
+        ? 502
+        : 404;
+
       return Response.json(
-        { error: { message: "Asset is not ready yet" } },
-        { status: 404 },
+        { error: { message: `Asset is not ready yet (status: ${normalized.status})` } },
+        { status: statusCode },
       );
     }
 

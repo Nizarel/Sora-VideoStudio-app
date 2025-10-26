@@ -5,6 +5,22 @@ const getEnv = (): Record<string, string | undefined> => {
 
 const readEnv = (key: string): string | undefined => getEnv()[key]?.trim();
 
+const sanitizeModelKey = (model: string): string => model
+  .replace(/[^a-zA-Z0-9]+/g, "_")
+  .replace(/^_+|_+$/g, "")
+  .toUpperCase();
+
+export const resolveAzureModelIdentifier = (model: string): string => {
+  const specificKey = `AZURE_SORA_DEPLOYMENT_${sanitizeModelKey(model)}`;
+  const specific = readEnv(specificKey);
+  if (specific) return specific;
+
+  const defaultDeployment = readEnv("AZURE_SORA_DEPLOYMENT_DEFAULT");
+  if (defaultDeployment) return defaultDeployment;
+
+  return model;
+};
+
 export type AzureSoraConfig = {
   endpoint: string;
   apiKey: string;
@@ -125,6 +141,9 @@ export const azureSoraJsonRequest = async <T = unknown>(path: string, init: Azur
   const payload = text && isJson ? JSON.parse(text) : text ? { raw: text } : {};
 
   if (!response.ok) {
+    if (typeof payload === "object" && payload) {
+      console.error("Azure Sora error payload", payload);
+    }
     const message = (payload as { error?: { message?: string } })?.error?.message
       || (payload as { message?: string })?.message
       || response.statusText

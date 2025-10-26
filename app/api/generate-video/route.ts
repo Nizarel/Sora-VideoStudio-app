@@ -11,6 +11,7 @@ import {
 import {
   azureSoraJsonRequest,
   AzureSoraConfigError,
+  resolveAzureModelIdentifier,
 } from "@/lib/azureSora";
 import {
   buildVideoJobPayload,
@@ -61,7 +62,11 @@ export async function POST(request: Request) {
   };
 
   try {
-    const body = buildVideoJobPayload(videoPayload, prompt, imageData);
+    const deploymentModel = resolveAzureModelIdentifier(model);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("Azure Sora model mapping", { requested: model, deployment: deploymentModel });
+    }
+    const body = buildVideoJobPayload(videoPayload, prompt, imageData, deploymentModel);
     const result = await azureSoraJsonRequest("/video/generations/jobs", {
       method: "POST",
       body,

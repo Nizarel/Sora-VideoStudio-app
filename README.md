@@ -37,6 +37,10 @@ This app is meant to be used as a starting point to build Sora-powered video exp
    AZURE_SORA_KEY="your-azure-sora-key"
    # Optional, defaults to "preview"
    # AZURE_SORA_API_VERSION="2025-03-01-preview"
+   # Optional overrides if your deployment names differ from UI models
+   # AZURE_SORA_DEPLOYMENT_SORA_2="my-sora-2-deployment"
+   # AZURE_SORA_DEPLOYMENT_SORA_2_PRO="my-sora-2-pro-deployment"
+   # AZURE_SORA_DEPLOYMENT_DEFAULT="fallback-deployment-id"
    ```
 
    > **Note**

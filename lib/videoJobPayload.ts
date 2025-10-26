@@ -27,6 +27,7 @@ export const buildVideoJobPayload = (
   payload: VideoRequestPayload,
   prompt: string,
   image: ImageReferencePayload | null,
+  deploymentModel?: string,
 ): Record<string, unknown> => {
   const content: Array<Record<string, unknown>> = [
     {
@@ -73,7 +74,7 @@ export const buildVideoJobPayload = (
   }
 
   const jobPayload: Record<string, unknown> = {
-    model: payload.model,
+    model: deploymentModel ?? payload.model,
     input: [
       {
         role: "user",
@@ -90,6 +91,10 @@ export const buildVideoJobPayload = (
     prompt,
     size: payload.size,
     seconds: payload.seconds,
+    height: height ?? 1080,
+    width: width ?? 1080,
+    n_seconds: Number.isFinite(durationSeconds) ? durationSeconds : 4,
+    n_variants: 1,
   };
 
   return jobPayload;

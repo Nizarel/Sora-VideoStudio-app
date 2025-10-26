@@ -11,6 +11,7 @@ import {
 import {
   azureSoraJsonRequest,
   AzureSoraConfigError,
+  resolveAzureModelIdentifier,
 } from "@/lib/azureSora";
 import { buildVideoJobPayload } from "@/lib/videoJobPayload";
 
@@ -42,7 +43,8 @@ export async function POST(request: Request) {
   };
 
   try {
-    const jobPayload = buildVideoJobPayload(fallback, prompt, null);
+    const deploymentModel = resolveAzureModelIdentifier(fallback.model);
+    const jobPayload = buildVideoJobPayload(fallback, prompt, null, deploymentModel);
     jobPayload.remix_of = videoId;
     if (isRecord(jobPayload.metadata)) {
       jobPayload.metadata = {
