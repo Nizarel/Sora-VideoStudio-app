@@ -122,3 +122,121 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* --- Starbucks Theming Additions --- */
+:root {
+  --brand-green: #006341;
+  --brand-green-dark: #004f30;
+  --brand-green-light: #0a7d55;
+  --brand-cream: #f4f1ea;
+  --brand-warm-neutral: #ece6d9;
+  --brand-brown: #4b2e21;
+  --brand-black: #1e1e1e;
+  --brand-focus: #19a463;
+
+  --color-bg: var(--brand-cream);
+  --color-surface: #ffffff;
+  --color-surface-alt: var(--brand-warm-neutral);
+  --color-text: var(--brand-black);
+  --color-text-muted: #4d5b52;
+  --color-border: #d8d5cf;
+  --color-shadow: rgba(0,0,0,0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 18px;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.dark {
+  --color-bg: var(--brand-black);
+  --color-surface: #222;
+  --color-surface-alt: #2f2f2f;
+  --color-text: #fafafa;
+  --color-text-muted: #b7c5bc;
+  --color-border: #333;
+  --color-shadow: rgba(0,0,0,0.5);
+}
+
+a { color: var(--brand-green); }
+a:hover { color: var(--brand-green-light); }
+
+.btn {
+  font-weight: 600;
+  letter-spacing: .25px;
+  border-radius: var(--radius-md);
+  transition: background .2s, box-shadow .2s;
+  display: inline-flex;
+  gap: .5rem;
+  align-items: center;
+}
+.btn-primary {
+  background: var(--brand-green);
+  color: #fff;
+  padding: .65rem 1.2rem;
+  box-shadow: 0 2px 4px var(--color-shadow);
+}
+.btn-primary:hover { background: var(--brand-green-light); }
+.btn-primary:active { background: var(--brand-green-dark); }
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--brand-green-dark);
+  border: 1px solid var(--color-border);
+  padding: .6rem 1.1rem;
+}
+.btn-secondary:hover { background: var(--color-surface-alt); }
+.btn-ghost {
+  background: transparent;
+  color: var(--brand-green);
+  padding: .5rem .9rem;
+}
+.btn-ghost:hover { background: rgba(0,99,65,0.08); }
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 4px var(--color-shadow);
+  padding: 1rem 1.1rem;
+}
+
+.header-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--color-surface);
+  padding: .75rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 2px 4px var(--color-shadow);
+}
+
+.logo-mark {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand-green);
+  overflow: hidden;
+}
+
+input, select, textarea {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: .55rem .75rem;
+  color: var(--color-text);
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px rgba(0,99,65,0.25);
+}
+
+h1, h2, h3 { font-weight: 600; letter-spacing: .5px; }
+/* --- End Starbucks Theming Additions --- */

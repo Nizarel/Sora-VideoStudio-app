@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -46,6 +47,21 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: systemThemeScript }}
         />
+        {/* Branded header */}
+        <header className="header-bar">
+          <div className="logo-mark">
+            <Image
+              src="/starbucks-logo.svg"
+              alt="Starbucks"
+              width={38}
+              height={38}
+              priority
+            />
+          </div>
+          <strong style={{ fontSize: "1.05rem", color: "var(--brand-green-dark)" }}>
+            Starbucks Video Studio
+          </strong>
+        </header>
         {children}
       </body>
     </html>
