@@ -10,8 +10,8 @@ import {
 } from "@/lib/sora";
 import {
   azureSoraJsonRequest,
+  azureSoraBinaryRequest,
   AzureSoraConfigError,
-  getAzureSoraConfig,
 } from "@/lib/azureSora";
 
 const asVariant = (value: string | null): "video" | "thumbnail" | "spritesheet" | undefined => {
@@ -33,6 +33,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const variant = asVariant(url.searchParams.get("variant"));
 
   try {
+    // First, check job status to get the generation ID
     const job = await azureSoraJsonRequest(`/video/generations/jobs/${encodeURIComponent(videoId)}`);
     const record = isRecord(job) ? job : {};
     const fallback: VideoRequestPayload = {
@@ -43,76 +44,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     };
     const normalized = normalizeVideoResponse(job, fallback);
 
-    const assetUrl = (() => {
-      if (variant === "thumbnail") {
-        return normalized.thumbnail_url ?? null;
-      }
-      if (variant === "spritesheet") {
-        const assets = (record.assets && Array.isArray(record.assets)) ? record.assets : [];
-        for (const asset of assets) {
-          if (!isRecord(asset)) continue;
-          const type = typeof asset.type === "string" ? asset.type.toLowerCase() : "";
-          if (!type.includes("sprite")) continue;
-          if (typeof asset.download_url === "string" && asset.download_url) {
-            return asset.download_url;
-          }
-          if (typeof asset.url === "string" && asset.url) {
-            return asset.url;
-          }
-        }
-        return null;
-      }
-      return normalized.download_url ?? normalized.thumbnail_url ?? null;
-    })();
-
-    if (!assetUrl) {
-      const summarize = (collection: unknown): Array<Record<string, string>> => {
-        if (!Array.isArray(collection)) return [];
-        return collection
-          .map((item) => (isRecord(item) ? item : null))
-          .filter((item): item is Record<string, unknown> => Boolean(item))
-          .slice(0, 5)
-          .map((item) => ({
-            type: typeof item.type === "string" ? item.type : "",
-            role: typeof item.role === "string" ? item.role : "",
-            purpose: typeof item.purpose === "string" ? item.purpose : "",
-            url: typeof item.url === "string" ? item.url : "",
-            download_url: typeof item.download_url === "string" ? item.download_url : "",
-          }));
-      };
-
-      console.debug("Azure Sora asset not ready", {
-        videoId,
-        variant,
-        status: normalized.status,
-        assets: summarize(record.assets),
-        generations: summarize(record.generations),
-        resultAssets: summarize(isRecord(record.result) ? record.result.assets : undefined),
-      });
-
-      const statusCode = normalized.status === "succeeded" || normalized.status === "completed"
-        ? 502
-        : 404;
-
+    // Check if job is completed
+    if (normalized.status !== "succeeded" && normalized.status !== "completed") {
       return Response.json(
-        { error: { message: `Asset is not ready yet (status: ${normalized.status})` } },
-        { status: statusCode },
+        { error: { message: `Video is not ready yet (status: ${normalized.status})` } },
+        { status: 404 },
       );
     }
 
-    const attemptFetch = async (init?: RequestInit): Promise<Response> => fetch(assetUrl, init);
-
-    let assetResponse = await attemptFetch();
-    if (!assetResponse.ok) {
-      try {
-        const config = getAzureSoraConfig();
-        assetResponse = await attemptFetch({
-          headers: { "api-key": config.apiKey },
-        });
-      } catch (innerError) {
-        console.warn("Azure Sora asset fetch retry failed", innerError);
-      }
+    // Extract generation ID from the job response
+    // Azure expects /videos/{generation_id}/content, not /videos/{job_id}/content
+    const generations = Array.isArray(record.generations) ? record.generations : [];
+    const firstGeneration = generations.find((g) => isRecord(g) && typeof g.id === "string");
+    
+    if (!firstGeneration || !isRecord(firstGeneration) || typeof firstGeneration.id !== "string") {
+      return Response.json(
+        { error: { message: "No generation ID found in completed job" } },
+        { status: 502 },
+      );
     }
+
+    const generationId = firstGeneration.id;
+
+    // Use Azure's dedicated download endpoint according to official docs
+    // https://learn.microsoft.com/en-us/azure/ai-foundry/openai/video-generation-quickstart
+    // The REST API path is: /video/generations/{generation_id}/content/video
+    // For thumbnails: /video/generations/{generation_id}/content/thumbnail
+    
+    const assetType = variant === "thumbnail" ? "thumbnail" : "video";
+    const downloadPath = `/video/generations/${encodeURIComponent(generationId)}/content/${assetType}`;
+    
+    const assetResponse = await azureSoraBinaryRequest(downloadPath);
 
     if (!assetResponse.ok) {
       const message = await assetResponse.text().catch(() => "Failed to download asset");
