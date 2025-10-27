@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Deploy to Azure",
+      "type": "shell",
+      "command": "az webapp up --name starbucks-video-studio --resource-group sbux-rg --runtime 'NODE:20-lts' --location westus2",
+      "problemMatcher": []
+    }
+  ]
+}
