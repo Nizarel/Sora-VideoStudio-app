@@ -34,48 +34,45 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
     
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+    
     - name: Prepare deployment package
       run: |
-        # Create a clean deployment directory with source files only
+        # Create deployment directory with built standalone app
         mkdir -p deploy
         
-        # Copy source files (let Azure build on the server)
-        cp -r app deploy/
-        cp -r components deploy/
-        cp -r hooks deploy/
-        cp -r lib deploy/
-        cp -r public deploy/
-        cp -r services deploy/
-        cp -r types deploy/
-        cp -r ui deploy/
-        cp -r utils deploy/
+        # Copy the standalone build output
+        cp -r .next/standalone/. deploy/
         
-        # Copy config files
-        cp package.json deploy/
-        cp package-lock.json deploy/
-        cp next.config.ts deploy/
-        cp tsconfig.json deploy/
-        cp postcss.config.mjs deploy/
-        cp tailwind.config.ts deploy/ || cp tailwind.config.js deploy/ || true
-        cp middleware.ts deploy/ || true
-        cp next-env.d.ts deploy/ || true
+        # Copy static files
+        cp -r .next/static deploy/.next/static
+        cp -r public deploy/public
         
-        # Create .deployment file to control build behavior
-        echo "[config]" > deploy/.deployment
-        echo "SCM_DO_BUILD_DURING_DEPLOYMENT = true" >> deploy/.deployment
-        
-        # Create startup script
-        echo "#!/bin/sh" > deploy/startup.sh
-        echo "node .next/standalone/server.js" >> deploy/startup.sh
-        chmod +x deploy/startup.sh
+        # Create package.json with minimal production dependencies
+        cat > deploy/package.json << 'EOF'
+        {
+          "name": "starbucks-video-studio",
+          "version": "1.0.0",
+          "scripts": {
+            "start": "node server.js"
+          },
+          "dependencies": {
+            "next": "15.5.4"
+          }
+        }
+        EOF
     
     - name: Deploy via Azure CLI
       run: |
         cd deploy
         zip -qr ../site.zip .
         cd ..
-        az webapp deploy --name "$AZURE_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" --src-path site.zip --type zip --async false
-        echo "✅ Deployment package uploaded!"
+        az webapp deploy --name "$AZURE_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" --src-path site.zip --type zip --async true
+        echo "✅ Deployment initiated!"
     
     - name: Enable HTTPS-only
       run: |
