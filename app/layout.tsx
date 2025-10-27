@@ -14,12 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sora Sample App",
+  title: "Starbucks Video Studio",
   description:
-    "Sample frontend for generating videos with the OpenAI Sora models",
+    "Create branded Starbucks video concepts with AI prompts, remixing and image-assisted generation.",
   icons: {
-    icon: "/sora-2.png",
+    icon: "/starbucks-logo.svg",
+    shortcut: "/starbucks-logo.svg",
+    apple: "/starbucks-logo.svg",
   },
+  themeColor: "#00704a",
 };
 
 export default function RootLayout({
@@ -40,6 +43,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
         style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
       >
+        <link rel="icon" href="/starbucks-logo.svg" />
+        <meta name="theme-color" content="#00704a" />
         <script
           dangerouslySetInnerHTML={{ __html: systemThemeScript }}
         />

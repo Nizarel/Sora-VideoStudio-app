@@ -1,0 +1,6 @@
+<!-- Placeholder Starbucks-inspired icon (NOT official trademarked logo) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <circle cx="256" cy="256" r="256" fill="#00704a" />
+  <!-- Simplified abstract cup/siren-like mark -->
+  <path fill="#ffffff" d="M256 130c-54 0-98 39-98 88 0 34 21 64 52 78-3 12-10 35-15 46-2 5 3 10 8 9 25-6 47-17 53-20 6 3 28 14 53 20 5 1 10-4 8-9-5-11-12-34-15-46 31-14 52-44 52-78 0-49-44-88-98-88zm0 32c37 0 66 26 66 56 0 31-29 56-66 56s-66-25-66-56c0-30 29-56 66-56z" />
+</svg>
