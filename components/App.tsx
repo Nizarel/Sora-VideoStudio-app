@@ -701,10 +701,10 @@ export default function App() {
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
             <header className="mb-1.5 flex items-start justify-between gap-3">
               <div>
-                <h1 className="mb-2 text-3xl font-semibold" style={{ color: 'var(--brand-black)' }}>Sora API Demo</h1>
+                <h1 className="mb-2 text-3xl font-semibold" style={{ color: 'var(--brand-black)' }}>Create Your Story</h1>
                 <p className="text-sm" style={{ color: 'var(--brand-black)', opacity: 0.7 }}>
-                  Try Sora models in the API, with different parameters and text
-                  + image inputs.
+                  Craft engaging video content for Starbucks with AI-powered video generation. 
+                  Bring your creative vision to life with custom prompts, images, and styles.
                 </p>
               </div>
               <Button
