@@ -5,9 +5,14 @@ on:
     branches: [ sora2ui ]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AZURE_WEBAPP_NAME: starbucks-video-studio
   NODE_VERSION: '20.x'
+  RESOURCE_GROUP: sbux-rg
 
 jobs:
   build-and-deploy:
@@ -15,6 +20,13 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Azure Login (OIDC)
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -38,9 +50,14 @@ jobs:
         cp next.config.ts deploy/
         cp middleware.ts deploy/ || true
     
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./deploy
+    - name: Deploy via Azure CLI
+      run: |
+        cd deploy
+        zip -qr ../site.zip .
+        cd ..
+        az webapp deploy --name "$AZURE_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" --src-path site.zip --type zip
+        echo "✅ Deployment complete!"
+    
+    - name: Enable HTTPS-only
+      run: |
+        az webapp update --name "$AZURE_WEBAPP_NAME" --resource-group "$RESOURCE_GROUP" --set httpsOnly=true

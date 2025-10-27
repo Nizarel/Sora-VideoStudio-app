@@ -1,0 +1,6 @@
+{
+  "name": "github-sora2ui",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:Nizarel/Sora-VideoStudio-app:ref:refs/heads/sora2ui",
+  "audiences": ["api://AzureADTokenExchange"]
+}
