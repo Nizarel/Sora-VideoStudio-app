@@ -11,6 +11,8 @@ const sanitizeModelKey = (model: string): string => model
   .toUpperCase();
 
 export const resolveAzureModelIdentifier = (model: string): string => {
+  // Normalize accidental double hyphen variants (e.g. "sora--2" -> "sora-2")
+  const normalizedModel = model.replace(/--+/g, "-");
   const specificKey = `AZURE_SORA_DEPLOYMENT_${sanitizeModelKey(model)}`;
   const specific = readEnv(specificKey);
   if (specific) return specific;
@@ -18,13 +20,12 @@ export const resolveAzureModelIdentifier = (model: string): string => {
   const defaultDeployment = readEnv("AZURE_SORA_DEPLOYMENT_DEFAULT");
   if (defaultDeployment) return defaultDeployment;
 
-  return model;
+  return normalizedModel;
 };
 
 export type AzureSoraConfig = {
   endpoint: string;
   apiKey: string;
-  apiVersion: string;
 };
 
 type QueryParams = Record<string, string | number | null | undefined>;
@@ -49,44 +50,51 @@ export class AzureSoraConfigError extends Error {
 const normalizeEndpoint = (value: string): string => value.replace(/\/*$/, "");
 
 export const getAzureSoraConfig = (): AzureSoraConfig => {
-  // Revert to dedicated Sora env vars; this resource may differ from generic Azure OpenAI endpoint.
-  const endpoint = readEnv("AZURE_SORA_ENDPOINT");
-  const apiKey = readEnv("AZURE_SORA_KEY");
-  // Allow override per-feature if AZURE_SORA_API_VERSION is set; default remains preview.
-  const apiVersion = readEnv("AZURE_SORA_API_VERSION") || "preview";
+  // Prefer dedicated Sora env vars, then fall back to shared OpenAI ones if not provided.
+  let endpoint = readEnv("AZURE_SORA_ENDPOINT") || readEnv("AZURE_OPENAI_ENDPOINT");
+  const apiKey = readEnv("AZURE_SORA_KEY") || readEnv("AZURE_OPENAI_API_KEY");
 
   if (!endpoint) {
-    throw new AzureSoraConfigError("AZURE_SORA_ENDPOINT is not configured");
+    throw new AzureSoraConfigError("AZURE_SORA_ENDPOINT or AZURE_OPENAI_ENDPOINT must be configured");
   }
-
   if (!apiKey) {
-    throw new AzureSoraConfigError("AZURE_SORA_KEY is not configured");
+    throw new AzureSoraConfigError("AZURE_SORA_KEY or AZURE_OPENAI_API_KEY must be configured");
   }
 
-  return {
-    endpoint: normalizeEndpoint(endpoint),
+  endpoint = normalizeEndpoint(endpoint);
+  // Ensure endpoint contains /openai/v1 for Sora v1 API
+  if (!/\/openai\/v1$/i.test(endpoint)) {
+    endpoint = `${endpoint}/openai/v1`;
+  }
+
+  const config: AzureSoraConfig = {
+    endpoint,
     apiKey,
-    apiVersion,
   };
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("Azure Sora config", { endpoint: config.endpoint, hasKey: !!config.apiKey });
+  }
+  return config;
 };
 
-const buildQueryString = (query: QueryParams | undefined, apiVersion: string): string => {
+const buildQueryString = (query: QueryParams | undefined): string => {
   const params = new URLSearchParams();
-  params.set("api-version", apiVersion);
+  // Sora 2 uses v1 API - version is indicated by the /openai/v1/ path, not query parameter
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
       if (value === null || value === undefined) return;
       params.set(key, String(value));
     });
   }
-  return params.toString();
+  const queryString = params.toString();
+  return queryString ? queryString : "";
 };
 
 const buildUrl = (config: AzureSoraConfig, path: string, query?: QueryParams): string => {
   // The Sora endpoint already includes /openai/v1 in configuration; don't append it again.
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const queryString = buildQueryString(query, config.apiVersion);
-  return `${config.endpoint}${normalizedPath}?${queryString}`;
+  const queryString = buildQueryString(query);
+  return queryString ? `${config.endpoint}${normalizedPath}?${queryString}` : `${config.endpoint}${normalizedPath}`;
 };
 
 const toHeaders = (headers: HeadersInit | undefined): Headers => {

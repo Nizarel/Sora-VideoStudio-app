@@ -27,7 +27,8 @@ export async function GET(
   }
 
   try {
-    const video = await azureSoraJsonRequest(`/video/generations/jobs/${encodeURIComponent(videoId)}`);
+    // Sora 2 uses /videos/{id} endpoint for status (not /video/generations/jobs/{id})
+    const video = await azureSoraJsonRequest(`/videos/${encodeURIComponent(videoId)}`);
     const videoRecord = isRecord(video) ? video : {};
 
     const prompt =

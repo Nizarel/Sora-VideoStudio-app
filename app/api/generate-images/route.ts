@@ -81,7 +81,9 @@ export async function POST(request: Request) {
   // Read Azure OpenAI configuration
   const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION?.trim() ?? "2024-04-01-preview";
+  const baseApiVersion = process.env.AZURE_OPENAI_API_VERSION?.trim() ?? "2024-04-01-preview";
+  const overrideApiVersion = process.env.AZURE_OPENAI_API_VERSION_IMAGES?.trim();
+  const apiVersion = overrideApiVersion || baseApiVersion;
   const deployment = process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT?.trim() ?? IMAGE_MODEL_FALLBACK;
 
   if (!apiKey || !endpoint) {
@@ -112,8 +114,11 @@ export async function POST(request: Request) {
   // Model is validated but deployment name is used for Azure
   coerceImageModel(rawPayload.model);
 
-  // Build Azure Images API URL
+  // Build Azure Images API URL with per-feature version override support
   const imagesUrl = `${endpoint.replace(/\/*$/, "")}/openai/deployments/${encodeURIComponent(deployment)}/images/generations?api-version=${encodeURIComponent(apiVersion)}`;
+  if (overrideApiVersion) {
+    console.log("[images] using version override", { apiVersion: overrideApiVersion });
+  }
 
   try {
     const body = {

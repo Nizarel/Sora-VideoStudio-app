@@ -1,4 +1,5 @@
-type VideoModel = "sora-2" | "sora-2-pro";
+// Allow legacy and new hyphen variant ("sora--2") sometimes surfaced by experimental deployment naming.
+type VideoModel = "sora-2" | "sora-2-pro" | "sora--2";
 type VideoSeconds = "4" | "8" | "12";
 type VideoSize = "720x1280" | "1280x720" | "1024x1792" | "1792x1024";
 
@@ -8,7 +9,7 @@ const MODEL_FALLBACK: VideoModel = "sora-2";
 const SIZE_FALLBACK: VideoSize = "1280x720";
 const SECONDS_FALLBACK: VideoSeconds = "4";
 
-const ALLOWED_MODELS = new Set<VideoModel>(["sora-2", "sora-2-pro"]);
+const ALLOWED_MODELS = new Set<VideoModel>(["sora-2", "sora-2-pro", "sora--2"]);
 const ALLOWED_SIZES = new Set<VideoSize>(["720x1280", "1280x720", "1024x1792", "1792x1024"]);
 const ALLOWED_SECONDS = new Set<VideoSeconds>(["4", "8", "12"]);
 

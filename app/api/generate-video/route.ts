@@ -67,7 +67,8 @@ export async function POST(request: Request) {
       console.debug("Azure Sora model mapping", { requested: model, deployment: deploymentModel });
     }
     const body = buildVideoJobPayload(videoPayload, prompt, imageData, deploymentModel);
-    const result = await azureSoraJsonRequest("/video/generations/jobs", {
+    // Sora 2 uses /videos endpoint (not /video/generations/jobs)
+    const result = await azureSoraJsonRequest("/videos", {
       method: "POST",
       body,
     });

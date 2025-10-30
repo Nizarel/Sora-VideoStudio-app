@@ -33,8 +33,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const variant = asVariant(url.searchParams.get("variant"));
 
   try {
-    // First, check job status to get the generation ID
-    const job = await azureSoraJsonRequest(`/video/generations/jobs/${encodeURIComponent(videoId)}`);
+    // First, check video status using Sora 2 v1 API
+    const job = await azureSoraJsonRequest(`/videos/${encodeURIComponent(videoId)}`);
     const record = isRecord(job) ? job : {};
     const fallback: VideoRequestPayload = {
       prompt: typeof record.prompt === "string" ? record.prompt : "",
@@ -52,32 +52,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
-    // Extract generation ID from the job response
-    // Azure expects /videos/{generation_id}/content, not /videos/{job_id}/content
-    const generations = Array.isArray(record.generations) ? record.generations : [];
-    const firstGeneration = generations.find((g) => isRecord(g) && typeof g.id === "string");
+    // Sora 2 v1 API: Download content directly using video ID
+    // Path: /videos/{video_id}/content?variant={video|thumbnail}
+    const downloadPath = `/videos/${encodeURIComponent(videoId)}/content`;
+    const query = variant ? { variant } : { variant: "video" };
     
-    if (!firstGeneration || !isRecord(firstGeneration) || typeof firstGeneration.id !== "string") {
-      return Response.json(
-        { error: { message: "No generation ID found in completed job" } },
-        { status: 502 },
-      );
-    }
-
-    const generationId = firstGeneration.id;
-
-    // Use Azure's dedicated download endpoint according to official docs
-    // https://learn.microsoft.com/en-us/azure/ai-foundry/openai/video-generation-quickstart
-    // The REST API path is: /video/generations/{generation_id}/content/video
-    // For thumbnails: /video/generations/{generation_id}/content/thumbnail
-    
-    const assetType = variant === "thumbnail" ? "thumbnail" : "video";
-    const downloadPath = `/video/generations/${encodeURIComponent(generationId)}/content/${assetType}`;
-    
-    const assetResponse = await azureSoraBinaryRequest(downloadPath);
+    // Verbose logging to aid debugging of asset retrieval
+    console.log("[sora] content fetch", { videoId, variant: query.variant, downloadPath });
+    const assetResponse = await azureSoraBinaryRequest(downloadPath, { query });
 
     if (!assetResponse.ok) {
       const message = await assetResponse.text().catch(() => "Failed to download asset");
+      console.error("[sora] asset download failed", { status: assetResponse.status, videoId, variant: query.variant, message });
       return Response.json({ error: { message } }, { status: assetResponse.status || 502 });
     }
 

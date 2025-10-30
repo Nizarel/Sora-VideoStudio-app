@@ -6,8 +6,11 @@ import { DEFAULT_TITLE_MODEL, extractTitleFromResponse } from "@/utils/titles";
 export async function POST(request: Request) {
   const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
+  // Allow per-feature override for titles if a newer preview version is required.
   const apiVersion =
-    process.env.AZURE_OPENAI_API_VERSION?.trim() ?? "2024-04-01-preview";
+    process.env.AZURE_OPENAI_API_VERSION_TITLES?.trim()
+      || process.env.AZURE_OPENAI_API_VERSION?.trim()
+      || "2025-03-01-preview"; // Responses API requires 2025-03-01-preview or later
   const deployment =
     process.env.AZURE_OPENAI_TITLE_DEPLOYMENT?.trim() ?? DEFAULT_TITLE_MODEL;
 
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
   // Build the prompt content once
   const userContent = `Propose a short reel-style title for this video prompt (don't include quotes around the title): ${prompt}`;
 
-  // First attempt: Responses API
+  // First attempt: Responses API (only valid for api-version >= 2025-03-01-preview)
   try {
     const responsesResult = await client.responses.create({
       model: deployment,
@@ -69,13 +72,14 @@ export async function POST(request: Request) {
   } catch (primaryError) {
     const status = resolveErrorStatus(primaryError);
     const message = describeError(primaryError, "Primary title generation failed");
+    const isVersionGate = isRecord(primaryError) && typeof (primaryError as { status?: number }).status === "number" && status === 400;
     const isNotFound = status === 404;
-    // Only fallback on 404 resource not found; other errors propagate.
-    if (!isNotFound) {
+    // Fallback on 404 (missing surface) or 400 (version gate) conditions.
+    if (!isNotFound && !isVersionGate) {
       console.error("Azure OpenAI Responses API failed", primaryError);
       return NextResponse.json({ error: { message } }, { status });
     }
-    console.warn("Responses API 404 - attempting chat/completions fallback", { message, deployment, endpoint });
+    console.warn("Responses API fallback pathway", { message, deployment, endpoint, status });
   }
 
   // Fallback: chat/completions endpoint (raw fetch) for resources exposing only that surface.

@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     shortcut: "/starbucks-logo.svg",
     apple: "/starbucks-logo.svg",
   },
+};
+
+// Move themeColor to viewport per Next.js recommendation for dynamic theming and to silence warnings.
+export const viewport = {
   themeColor: "#00704a",
 };
 
@@ -44,7 +48,7 @@ export default function RootLayout({
         style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
       >
         <link rel="icon" href="/starbucks-logo.svg" />
-        <meta name="theme-color" content="#00704a" />
+        {/* theme-color handled by exported viewport config */}
         <script
           dangerouslySetInnerHTML={{ __html: systemThemeScript }}
         />

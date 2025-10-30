@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       };
     }
 
-    const video = await azureSoraJsonRequest("/video/generations/jobs", {
+    const video = await azureSoraJsonRequest("/videos", {
       method: "POST",
       body: jobPayload,
     });
