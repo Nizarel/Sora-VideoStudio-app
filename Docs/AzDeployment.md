@@ -45,15 +45,12 @@ curl -X POST http://localhost:3000/api/generate-video -H "Content-Type: applicat
 Remove plaintext keys before committing; instead add a `.env.example`:
 
 ````bash
-AZURE_SORA_ENDPOINT=
-AZURE_SORA_KEY=
-AZURE_SORA_API_VERSION=preview
-AZURE_SORA_DEPLOYMENT_SORA_2=sora-2
-
 AZURE_OPENAI_ENDPOINT=
 AZURE_OPENAI_API_KEY=
 AZURE_OPENAI_API_VERSION=2024-04-01-preview
+AZURE_SORA_DEPLOYMENT_SORA_2=sora-2
 AZURE_OPENAI_TITLE_DEPLOYMENT=gpt-4.1-mini
+AZURE_OPENAI_IMAGE_DEPLOYMENT=gpt-image-1
 ````
 
 Rotate the existing keys you pasted (treat as compromised).
@@ -75,14 +72,12 @@ az webapp create --name sora-video-app --resource-group sora-app-rg --plan sora-
 
 ```powershell
 az webapp config appsettings set --name sora-video-app --resource-group sora-app-rg --settings `
-  AZURE_SORA_ENDPOINT="https://sbuxsvr2.cognitiveservices.azure.com/openai/v1" `
-  AZURE_SORA_KEY="<ROTATED_SORA_KEY>" `
-  AZURE_SORA_API_VERSION="preview" `
-  AZURE_SORA_DEPLOYMENT_SORA_2="sora-2" `
-  AZURE_OPENAI_ENDPOINT="https://sbuxy.cognitiveservices.azure.com/" `
-  AZURE_OPENAI_API_KEY="<ROTATED_OPENAI_KEY>" `
+  AZURE_OPENAI_ENDPOINT="https://tribixo.openai.azure.com/" `
+  AZURE_OPENAI_API_KEY="<ROTATED_KEY>" `
   AZURE_OPENAI_API_VERSION="2024-04-01-preview" `
+  AZURE_SORA_DEPLOYMENT_SORA_2="sora-2" `
   AZURE_OPENAI_TITLE_DEPLOYMENT="gpt-4.1-mini" `
+  AZURE_OPENAI_IMAGE_DEPLOYMENT="gpt-image-1" `
   NODE_ENV="production"
 ```
 
@@ -203,7 +198,7 @@ curl "$BASE/api/videos/<gen_id>/content/video" -o test.mp4
 
 ## 🛡 Minimal Hardening (Still Fast)
 
-- Add `AZURE_SORA_KEY` and `AZURE_OPENAI_API_KEY` to Key Vault later (not required day one).
+- Add `AZURE_OPENAI_API_KEY` to Key Vault later (not required day one).
 - Set `APPINSIGHTS_INSTRUMENTATIONKEY` (optional) for telemetry.
 - Enable HTTPS-only:
   ```powershell

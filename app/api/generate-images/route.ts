@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 import { describeError, resolveErrorStatus } from "@/lib/sora";
 import type { GeneratedImageSuggestion } from "@/types/generated";
 
@@ -8,7 +7,16 @@ const ALLOWED_IMAGE_MODELS = new Set<string>(["gpt-image-1"]);
 const MAX_IMAGE_COUNT = 4;
 const DEFAULT_IMAGE_COUNT = 3;
 
-type ImageSize = OpenAI.Images.ImageGenerateParams["size"];
+// Azure Images API supported sizes
+type ImageSize = 
+  | "256x256"
+  | "512x512"
+  | "1024x1024"
+  | "1024x1536"
+  | "1536x1024"
+  | "1024x1792"
+  | "1792x1024"
+  | "auto";
 
 const DEFAULT_IMAGE_SIZE: ImageSize = "1024x1024";
 const ALLOWED_IMAGE_SIZES = new Set<ImageSize>([
@@ -70,13 +78,16 @@ const coerceImageSize = (value: unknown): ImageSize => {
 };
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    const message = "OPENAI_API_KEY is not configured";
+  // Read Azure OpenAI configuration
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION?.trim() ?? "2024-04-01-preview";
+  const deployment = process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT?.trim() ?? IMAGE_MODEL_FALLBACK;
+
+  if (!apiKey || !endpoint) {
+    const message = "AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT must be configured";
     return NextResponse.json({ error: { message } }, { status: 500 });
   }
-
-  const client = new OpenAI({ apiKey });
 
   let rawPayload: GenerateImagesPayload;
   try {
@@ -98,33 +109,69 @@ export async function POST(request: Request) {
 
   const size = coerceImageSize(rawPayload.size);
   const count = coerceImageCount(rawPayload.count);
-  const model = coerceImageModel(rawPayload.model);
+  // Model is validated but deployment name is used for Azure
+  coerceImageModel(rawPayload.model);
+
+  // Build Azure Images API URL
+  const imagesUrl = `${endpoint.replace(/\/*$/, "")}/openai/deployments/${encodeURIComponent(deployment)}/images/generations?api-version=${encodeURIComponent(apiVersion)}`;
 
   try {
-    const generation = await client.images.generate({
-      model,
+    const body = {
       prompt,
       size,
       quality: "high",
       n: count,
+    };
+
+    const response = await fetch(imagesUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: JSON.stringify(body),
     });
 
-    const suggestions = (generation.data ?? []).reduce<
-      GeneratedImageSuggestion[]
-    >((acc, entry, index) => {
+    const text = await response.text();
+    let parsed: unknown = null;
+    try {
+      parsed = text ? JSON.parse(text) : {};
+    } catch {
+      parsed = { raw: text };
+    }
+
+    if (!response.ok) {
+      const errorRecord = parsed as Record<string, unknown>;
+      const errorObj = errorRecord?.error as Record<string, unknown> | undefined;
+      const errorMessage = typeof errorObj?.message === "string"
+        ? errorObj.message
+        : response.statusText || "Azure Images API request failed";
+      console.error("Azure OpenAI Images failed", { status: response.status, body: parsed });
+      return NextResponse.json({ error: { message: errorMessage } }, { status: response.status });
+    }
+
+    // Azure Images API returns { data: [...] } structure
+    interface AzureImageEntry {
+      b64_json?: string;
+      url?: string;
+    }
+    const parsedRecord = parsed as Record<string, unknown>;
+    const data = Array.isArray(parsedRecord?.data) ? (parsedRecord.data as AzureImageEntry[]) : [];
+    
+    const suggestions: GeneratedImageSuggestion[] = [];
+    data.forEach((entry: AzureImageEntry, index: number) => {
       const base64 = entry.b64_json ?? null;
       const url = base64
         ? `data:image/png;base64,${base64}`
         : readString(entry.url);
-      if (!url) return acc;
-      acc.push({
+      if (!url) return;
+      suggestions.push({
         id: `generated-${Date.now()}-${index}`,
         url,
         base64,
         description: prompt,
       });
-      return acc;
-    }, []);
+    });
 
     return NextResponse.json({ images: suggestions });
   } catch (error) {

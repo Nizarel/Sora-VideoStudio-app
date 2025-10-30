@@ -30,21 +30,24 @@ This app is meant to be used as a starting point to build Sora-powered video exp
 
 2. **Configure credentials:**
 
-   Create a `.env.local` file at the project root (or export the variables in your shell) with the Azure Sora endpoint and key that your Azure AI Foundry resource provides. The API version defaults to `preview`, but you can override it if Microsoft releases a newer preview version.
+   Create a `.env.local` file at the project root with your Azure credentials:
 
    ```bash
-   AZURE_SORA_ENDPOINT="https://<your-resource-name>.cognitiveservices.azure.com/openai/v1"
-   AZURE_SORA_KEY="your-azure-sora-key"
-   # Optional, defaults to "preview"
-   # AZURE_SORA_API_VERSION="2025-03-01-preview"
-   # Optional overrides if your deployment names differ from UI models
-   # AZURE_SORA_DEPLOYMENT_SORA_2="my-sora-2-deployment"
-   # AZURE_SORA_DEPLOYMENT_SORA_2_PRO="my-sora-2-pro-deployment"
-   # AZURE_SORA_DEPLOYMENT_DEFAULT="fallback-deployment-id"
+   # Azure OpenAI configuration (shared for Sora, Images, Titles, Prompts)
+   AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
+   AZURE_OPENAI_API_KEY="your-azure-openai-key"
+   AZURE_OPENAI_API_VERSION="2024-04-01-preview"
+
+   # Deployment names
+   AZURE_SORA_DEPLOYMENT_SORA_2="sora-2"
+   AZURE_OPENAI_TITLE_DEPLOYMENT="gpt-4.1-mini"
+   AZURE_OPENAI_IMAGE_DEPLOYMENT="gpt-image-1"
    ```
 
-   > **Note**
-   > Other helper features (prompt suggestions, titles, image generation) still rely on the OpenAI Responses and Images APIs. If you plan to use those flows, also provide `OPENAI_API_KEY` in the same `.env.local` file.
+   > **Security Note**  
+   > Never commit `.env.local`. For production deployment on Azure App Service, configure these as Application Settings. For CI/CD, use GitHub Actions secrets.
+
+   See `.env.example` for a safe template.
 
 3. **Clone the repository:**
 

@@ -49,16 +49,16 @@ export class AzureSoraConfigError extends Error {
 const normalizeEndpoint = (value: string): string => value.replace(/\/*$/, "");
 
 export const getAzureSoraConfig = (): AzureSoraConfig => {
-  const endpoint = readEnv("AZURE_SORA_ENDPOINT");
-  const apiKey = readEnv("AZURE_SORA_KEY");
-  const apiVersion = readEnv("AZURE_SORA_API_VERSION") || "preview";
+  const endpoint = readEnv("AZURE_OPENAI_ENDPOINT");
+  const apiKey = readEnv("AZURE_OPENAI_API_KEY");
+  const apiVersion = readEnv("AZURE_OPENAI_API_VERSION") || "2024-04-01-preview";
 
   if (!endpoint) {
-    throw new AzureSoraConfigError("AZURE_SORA_ENDPOINT is not configured");
+    throw new AzureSoraConfigError("AZURE_OPENAI_ENDPOINT is not configured");
   }
 
   if (!apiKey) {
-    throw new AzureSoraConfigError("AZURE_SORA_KEY is not configured");
+    throw new AzureSoraConfigError("AZURE_OPENAI_API_KEY is not configured");
   }
 
   return {
@@ -83,7 +83,7 @@ const buildQueryString = (query: QueryParams | undefined, apiVersion: string): s
 const buildUrl = (config: AzureSoraConfig, path: string, query?: QueryParams): string => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const queryString = buildQueryString(query, config.apiVersion);
-  return `${config.endpoint}${normalizedPath}?${queryString}`;
+  return `${config.endpoint}openai/v1${normalizedPath}?${queryString}`;
 };
 
 const toHeaders = (headers: HeadersInit | undefined): Headers => {
