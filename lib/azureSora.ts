@@ -49,16 +49,18 @@ export class AzureSoraConfigError extends Error {
 const normalizeEndpoint = (value: string): string => value.replace(/\/*$/, "");
 
 export const getAzureSoraConfig = (): AzureSoraConfig => {
-  const endpoint = readEnv("AZURE_OPENAI_ENDPOINT");
-  const apiKey = readEnv("AZURE_OPENAI_API_KEY");
-  const apiVersion = readEnv("AZURE_OPENAI_API_VERSION") || "2024-04-01-preview";
+  // Revert to dedicated Sora env vars; this resource may differ from generic Azure OpenAI endpoint.
+  const endpoint = readEnv("AZURE_SORA_ENDPOINT");
+  const apiKey = readEnv("AZURE_SORA_KEY");
+  // Allow override per-feature if AZURE_SORA_API_VERSION is set; default remains preview.
+  const apiVersion = readEnv("AZURE_SORA_API_VERSION") || "preview";
 
   if (!endpoint) {
-    throw new AzureSoraConfigError("AZURE_OPENAI_ENDPOINT is not configured");
+    throw new AzureSoraConfigError("AZURE_SORA_ENDPOINT is not configured");
   }
 
   if (!apiKey) {
-    throw new AzureSoraConfigError("AZURE_OPENAI_API_KEY is not configured");
+    throw new AzureSoraConfigError("AZURE_SORA_KEY is not configured");
   }
 
   return {
@@ -81,9 +83,10 @@ const buildQueryString = (query: QueryParams | undefined, apiVersion: string): s
 };
 
 const buildUrl = (config: AzureSoraConfig, path: string, query?: QueryParams): string => {
+  // The Sora endpoint already includes /openai/v1 in configuration; don't append it again.
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const queryString = buildQueryString(query, config.apiVersion);
-  return `${config.endpoint}openai/v1${normalizedPath}?${queryString}`;
+  return `${config.endpoint}${normalizedPath}?${queryString}`;
 };
 
 const toHeaders = (headers: HeadersInit | undefined): Headers => {
@@ -133,6 +136,9 @@ export const azureSoraJsonRequest = async <T = unknown>(path: string, init: Azur
   }
 
   const url = buildUrl(config, path, query);
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("Azure Sora JSON request", { url, hasBody: !!body });
+  }
   const response = await fetch(url, finalInit);
 
   const contentType = response.headers.get("content-type") || "";
@@ -177,6 +183,9 @@ export const azureSoraBinaryRequest = async (path: string, init: AzureSoraReques
   }
 
   const url = buildUrl(config, path, query);
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("Azure Sora binary request", { url });
+  }
   const response = await fetch(url, finalInit);
   if (!response.ok) {
     const text = await response.text();
