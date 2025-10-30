@@ -44,8 +44,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     };
     const normalized = normalizeVideoResponse(job, fallback);
 
-    // Check if job is completed
-    if (normalized.status !== "succeeded" && normalized.status !== "completed") {
+    // Check if job is completed (status gets normalized to "succeeded")
+    if (normalized.status !== "succeeded") {
       return Response.json(
         { error: { message: `Video is not ready yet (status: ${normalized.status})` } },
         { status: 404 },
